@@ -59,11 +59,11 @@
   main { padding:4px 18px; max-width:960px; }
   .card { padding:18px; margin-bottom:16px; }
   .row { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
-  input, select { font-family:inherit; font-size:14px; color:var(--text); border:none; outline:none;
+  input, select, textarea { font-family:inherit; font-size:14px; color:var(--text); border:none; outline:none;
     background:var(--bg); border-radius:12px; padding:10px 14px;
     box-shadow:inset 4px 4px 8px var(--sd), inset -4px -4px 8px var(--sl); }
-  input:focus { box-shadow:inset 4px 4px 8px var(--sd), inset -4px -4px 8px var(--sl), 0 0 0 2px rgba(37,99,235,0.3); }
-  input::placeholder { color:var(--dim); }
+  input:focus, select:focus, textarea:focus { box-shadow:inset 4px 4px 8px var(--sd), inset -4px -4px 8px var(--sl), 0 0 0 2px rgba(37,99,235,0.3); }
+  input::placeholder, textarea::placeholder { color:var(--dim); }
   input[type=number]{ width:92px; }
   .hero { padding:22px; margin-bottom:16px; border-radius:24px; color:#fff; position:relative; overflow:hidden;
     background:linear-gradient(135deg,#3b82f6,#1d4ed8 70%,#1e40af);
@@ -97,7 +97,6 @@
     box-shadow:3px 3px 6px var(--sd), -3px -3px 6px var(--sl); }
   .tag.mgr { background:linear-gradient(145deg,#3b82f6,#1d4ed8); color:#fff; }
   .tag.gst { color:#b45309; font-weight:700; }
-  .tag.warn { color:#b45309; }
   .personrow { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #d5dbe7; flex-wrap:wrap; }
   .personrow:last-child { border-bottom:none; }
   table.plain { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
@@ -107,8 +106,6 @@
   .b { color:#1d4ed8; font-weight:800; } .g { color:var(--green); font-weight:700; } .r { color:var(--red); font-weight:700; } .a { color:#b45309; font-weight:700; }
   .statline { display:inline-block; margin:4px 12px 4px 0; }
   .statline b { font-size:16px; color:#1d4ed8; }
-  .modal-bg { position:fixed; inset:0; background:rgba(43,52,69,0.35); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px; }
-  .modal { max-width:430px; width:100%; padding:24px; max-height:85vh; overflow:auto; border-radius:24px; }
   .hidden { display:none !important; }
   .toast { position:fixed; bottom:92px; left:50%; transform:translateX(-50%); padding:11px 22px; border-radius:16px; z-index:99; opacity:0; transition:.3s; pointer-events:none; font-size:14px; font-weight:600; }
   .toast.show { opacity:1; }
@@ -119,6 +116,14 @@
   .bottombar button .bi { font-size:19px; }
   .bottombar button.active { color:#1d4ed8; box-shadow:inset 3px 3px 7px var(--sd), inset -3px -3px 7px var(--sl); }
   @media(max-width:640px){ nav{display:none;} }
+
+  /* Print Styles */
+  @media print {
+    body { background: #fff; color: #000; padding: 0; }
+    .bottombar, header nav, .hbtns, .lbtn, .no-print { display: none !important; }
+    .emb { box-shadow: none !important; border: 1px solid #ccc; background: #fff !important; }
+    .hero { background: #2563eb !important; color: #fff !important; box-shadow: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -160,22 +165,17 @@
 <div class="emb toast" id="toast"></div>
 
 <script>
-/* ═══ নিয়ম ═══
-   শিফট: সকাল, দুপুর, রাত (ফিক্সড)
-   এন্ট্রি ডেডলাইন: বিকাল ৫টা (17:00) — এর পরে আজকের কোনো মিল অ্যাড করা যাবে না (ম্যানেজারসহ)
-   মেহমান: রাতের মিল + পরের দিন সকালের মিল (২ মিল)
-   বাজার রোটেশন: মাসের ১ তারিখ থেকে প্রতি জন ৪ দিন করে অটো; ম্যানেজার হস্তান্তর করতে পারে */
 const SHIFTS=['সকাল','দুপুর','রাত'];
-const DEADLINE_HOUR=17; // বিকাল ৫টা
+const DEADLINE_HOUR=17;
 const BLOCK_DAYS=4;
-const TABS=[['d','📊 ড্যাশবোর্ড','📊','ড্যাশ'],['m','🍛 মিল','🍛','মিল'],['c','📋 চার্ট','📋','চার্ট'],['b','🛒 বাজার','🛒','বাজার'],['r','💰 টাকা','💰','টাকা'],['p','📅 রিপোর্ট','📅','রিপোর্ট'],['a','⚙️ ম্যানেজার','⚙️','অ্যাডমিন']];
+const TABS=[['d','📊 ড্যাশবোর্ড','📊','ড্যাশ'],['m','🍛 মিল','🍛','মিল'],['c','📋 চার্ট','📋','চার্ট'],['b','🛒 বাজার ও ক্যাটাগরি','🛒','বাজার'],['r','💰 টাকা','💰','টাকা'],['n','📌 নোটিশ ও ডিরেক্টরি','📌','নোটিশ'],['p','📅 রিপোর্ট','📅','রিপোর্ট'],['a','⚙️ ম্যানেজার','⚙️','অ্যাডমিন']];
 let S=load(), me=null, curDate=new Date(), tab='d', bazarMonth=null;
 
 function load(){
-  const base={manager:null,users:{},people:[],meals:{},guests:{},bazars:[],advances:[],offDays:{},rotationExtra:[],rent:{}};
-  try{ return Object.assign(base,JSON.parse(localStorage.getItem('milApp4')||'{}')); }catch(e){ return base; }
+  const base={manager:null,users:{},people:[],meals:{},guests:{},bazars:[],advances:[],offDays:{},rotationExtra:[],rent:{},notices:[],checklist:[],profiles:{}};
+  try{ return Object.assign(base,JSON.parse(localStorage.getItem('milApp5')||'{}')); }catch(e){ return base; }
 }
-function save(){ localStorage.setItem('milApp4',JSON.stringify(S)); }
+function save(){ localStorage.setItem('milApp5',JSON.stringify(S)); }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtD=d=>d.toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -185,24 +185,22 @@ const isMgr=()=>me&&me.isManager;
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
 function greet(){const h=new Date().getHours();return h<12?'শুভ সকাল':h<16?'শুভ দুপুর':h<19?'শুভ বিকেল':'শুভ সন্ধ্যা';}
 
-/* ═══ সময় লক ═══ */
 function isToday(k){ return k===dkey(new Date()); }
 function entryLocked(k){
-  if(!isToday(k)) return true;                       // অতীত/ভবিষ্যতের এন্ট্রি নয়
-  return new Date().getHours()>=DEADLINE_HOUR;       // বিকাল ৫টা পার হলে আজকেরও নয়
+  if(!isToday(k)) return true;
+  return new Date().getHours()>=DEADLINE_HOUR;
 }
 function lockMsg(k){
   if(!isToday(k)) return 'শুধু আজকের মিল এডিট করা যায়';
   return 'বিকাল ৫টা পার হয়েছে — আজকের মিল এন্ট্রি বন্ধ';
 }
 
-/* ═══ AUTH ═══ */
 function doSetup(){
   const n=$('suName').value.trim(),p=$('suPass').value,p2=$('suPass2').value;
   if(!n)return toast('নাম দিন');
   if(p.length<4)return toast('পাসওয়ার্ড কমপক্ষে ৪ অক্ষর');
   if(p!==p2)return toast('দুইবার একই দিন');
-  S.manager={name:n,pass:p}; S.people.push(n); save(); login(n,true);
+  S.manager={name:n,pass:p}; S.people.push(n); S.profiles[n]={phone:'',room:''}; save(); login(n,true);
 }
 function doLogin(){
   const n=$('liName').value.trim(),p=$('liPass').value;
@@ -215,15 +213,14 @@ function doLogin(){
   if(u){ if(p===u.pass)return login(n,false); return toast('ভুল পাসওয়ার্ড'); }
   return toast('এই নামে অ্যাকাউন্ট নেই — ম্যানেজারকে বলুন');
 }
-function login(n,mgr){ me={name:n,isManager:mgr}; try{localStorage.setItem('milMe4',JSON.stringify({name:n}));}catch(e){} openApp(); }
-function logout(){ me=null; try{localStorage.removeItem('milMe4');}catch(e){} location.reload(); }
-try{ const mm=JSON.parse(localStorage.getItem('milMe4'));
+function login(n,mgr){ me={name:n,isManager:mgr}; try{localStorage.setItem('milMe5',JSON.stringify({name:n}));}catch(e){} openApp(); }
+function logout(){ me=null; try{localStorage.removeItem('milMe5');}catch(e){} location.reload(); }
+try{ const mm=JSON.parse(localStorage.getItem('milMe5'));
   if(mm){ if(S.manager&&mm.name===S.manager.name) login(mm.name,true); else if(S.users[mm.name]) login(mm.name,false); }
 }catch(e){}
 if(!S.manager){ $('setupView').classList.remove('hidden'); $('loginForm').classList.add('hidden');
   $('loginTitle').textContent='শুরু করুন'; $('loginSub').textContent='প্রথমবার ম্যানেজার সেটআপ করুন'; }
 
-/* ═══ SHELL ═══ */
 function openApp(){ $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden'); renderNav(); go('d'); }
 function renderNav(){
   const tabs=TABS.filter(t=>t[0]!=='a'||isMgr());
@@ -236,13 +233,11 @@ function renderNav(){
 }
 function go(t){ tab=t; renderNav(); render(); window.scrollTo(0,0); }
 
-/* ═══ DATA ═══ */
 function getMeal(k,n){ return (S.meals[k]&&S.meals[k][n])||[false,false,false]; }
 function cellStr(k,n){ return getMeal(k,n).map(v=>v?1:0).join('+'); }
 function guestsOn(k,n){ return (S.guests[k]&&S.guests[k][n])||0; }
-/* মেহমান: যে দিন এন্ট্রি হয় → সেই দিন রাত + পরের দিন সকাল */
 function guestNight(k,n){ return guestsOn(k,n); }
-function guestMorning(k,n){ // গতকালের মেহমান → আজকের সকাল
+function guestMorning(k,n){
   const d=new Date(k+'T00:00:00'); d.setDate(d.getDate()-1);
   return guestsOn(dkey(d),n);
 }
@@ -252,18 +247,13 @@ function monthMeals(m){
   for(const k in S.meals){ if(!k.startsWith(m))continue;
     for(const p in S.meals[k]) if(t[p]!==undefined) t[p]+=S.meals[k][p].filter(Boolean).length; }
   for(const k in S.guests){ if(!k.startsWith(m))continue;
-    for(const p in S.guests[k]) if(t[p]!==undefined) t[p]+=S.guests[k][p]*2; } // মেহমান = রাত + পরের দিন সকাল
+    for(const p in S.guests[k]) if(t[p]!==undefined) t[p]+=S.guests[k][p]*2; }
   return t;
 }
 const byPm=(bs,p)=>bs.filter(b=>b.name===p).reduce((a,b)=>a+b.amount,0);
 
-/* ═══ বাজার রোটেশন (অটো: ৪ দিন করে) ═══ */
-function rotationBase(){
-  // ম্যানেজার তালিকার ক্রম = রোটেশন ক্রম (অ্যাডমিন ট্যাবে দেখা যাবে)
-  return S.people.slice();
-}
+function rotationBase(){ return S.people.slice(); }
 function bazarPerson(k){
-  // k = 'YYYY-MM-DD'; হস্তান্তর override আগে দেখি
   const ov=(S.rotationExtra||[]).find(o=>o.month===k.slice(0,7)&&k.slice(8)>=o.fromDay);
   if(ov) return ov.person;
   const order=rotationBase(); if(!order.length) return null;
@@ -273,7 +263,6 @@ function bazarPerson(k){
 }
 function handover(k,person){
   const m=k.slice(0,7), day=k.slice(8);
-  // এই মাসে আগের override থাকলে বদলে দিই
   S.rotationExtra=(S.rotationExtra||[]).filter(o=>!(o.month===m&&o.fromDay===day));
   S.rotationExtra.push({month:m,fromDay:day,person}); save();
 }
@@ -289,15 +278,10 @@ function renderDash(){
   const rate=totalMeals>0?totalCost/totalMeals:0;
   const todayTotal=S.people.reduce((a,p)=>a+mealCount(k,p),0);
   const bp=bazarPerson(k);
-  // আগামী বাজার শিডিউল (এই মাসের বাকি ব্লক)
-  const [y,mo]=m.split('-').map(Number);
-  const lastDay=new Date(y,mo,0).getDate();
-  let sched=''; const seen=new Set();
-  for(let d=parseInt(k.slice(8)); d<=lastDay; d++){
-    const kk=m+'-'+String(d).padStart(2,'0');
-    const p=bazarPerson(kk);
-    if(p&&!seen.has(p+d+'_'+p)){ if(!sched.includes('>'+esc(p)+'<')){ sched+=`<span class="tag">${d}/${mo} — <b>${esc(p)}</b></span> `; } seen.add(p+''+d); }
-  }
+  
+  // Latest 2 notices
+  const latestNotices=(S.notices||[]).slice(-2).reverse();
+
   const hero=`
   <div class="hero ${locked?'locked-hero':''}">
     <h2>${locked?'🔒 আজকের এন্ট্রি বন্ধ':'আজ আপনার মিল'} ${locked?'':`— <span class="em">${cellStr(k,me.name)}</span>`}</h2>
@@ -309,6 +293,13 @@ function renderDash(){
       <div><b>${bp?esc(bp):'—'}</b><span>🛒 আজকের বাজারি</span></div>
     </div>
   </div>`;
+
+  const noticeWidget=latestNotices.length?`
+  <div class="emb card" style="background:linear-gradient(145deg,#eff6ff,#dbeafe);">
+    <div class="row"><b>📌 নোটিশ বোর্ড</b><span class="small" style="margin-left:auto;cursor:pointer;color:var(--blue)" onclick="go('n')">সব দেখুন →</span></div>
+    ${latestNotices.map(n=>`<div style="margin-top:6px;font-size:13px"><b>${esc(n.author)}:</b> ${esc(n.text)}</div>`).join('')}
+  </div>`:``;
+
   const stats=`
   <div class="statgrid">
     <div class="emb statcard"><span class="ic">🍛</span><div class="val">${todayTotal}</div><div class="lbl">আজকের মোট মিল</div></div>
@@ -352,9 +343,8 @@ function renderDash(){
     <div style="margin-top:10px">আজকের বাজারি: <span class="tag mgr">${bp?esc(bp):'—'}</span>
       ${isMgr()&&bp?`<button class="lbtn small" style="margin-left:8px" onclick="doHandover('${dkey(curDate)}')">🔄 হস্তান্তর</button>`:''}
     </div>
-    ${sched?`<div class="row" style="margin-top:10px"><span class="small">আগামী:</span>${sched}</div>`:''}
   </div>`;
-  return hero+stats+mine+todayList+bazarCard;
+  return hero+noticeWidget+stats+mine+todayList+bazarCard;
 }
 function toggleMeal(n,i){
   const k=dkey(curDate);
@@ -376,7 +366,7 @@ function rmGuest(n){
 }
 function chDate(n){ curDate.setDate(curDate.getDate()+n); render(); }
 function rmP(p){ if(!confirm(p+' কে বাদ দিবেন?'))return;
-  S.people=S.people.filter(x=>x!==p); delete S.users[p];
+  S.people=S.people.filter(x=>x!==p); delete S.users[p]; delete S.profiles[p];
   for(const k in S.meals)delete S.meals[k][p]; for(const k in S.guests)delete S.guests[k][p];
   save(); render(); toast('বাদ দেওয়া হয়েছে'); }
 function doHandover(k){
@@ -463,18 +453,28 @@ function renderChart(){
       ${rows}
       <tr><th></th>${S.people.map(p=>`<th class="tot">${meals[p]}</th>`).join('')}<th class="tot">${Object.values(meals).reduce((a,b)=>a+b,0)}</th><th></th></tr>
     </table></div>
-    <div class="hint">ফরম্যাট: <b>সকাল+দুপুর+রাত</b> (১=খেয়েছে, ০=খায়নি) · <span class="gcell">+১গ</span>= মেহমান (রাত + পরের দিন সকাল) · – = খাবে না · শেষ কলামে সেই দিনের বাজারি</div>
+    <div class="hint">ফরম্যাট: <b>সকাল+দুপুর+রাত</b> (১=খেয়েছে, ০=খায়নি) · <span class="gcell">+১গ</span>= মেহমান · – = খাবে না</div>
   </div>`;
 }
 
-/* ═══ বাজার ═══ */
+/* ═══ বাজার ও ক্যাটাগরি (Feature 1 & Feature 5) ═══ */
 function renderBazar(){
   if(!bazarMonth)bazarMonth=dkey(curDate).slice(0,7);
   const list=S.bazars.filter(b=>b.date.startsWith(bazarMonth)).sort((a,b)=>b.date.localeCompare(a.date));
   const tot=list.reduce((a,b)=>a+b.amount,0);
   const [y,mo]=bazarMonth.split('-').map(Number);
   const last=new Date(y,mo,0).getDate();
-  // রোটেশন টেবিল
+
+  // Category breakdown calculation
+  const catTotals = {};
+  list.forEach(b=>{
+    const c = b.cat || 'বাজার খরচ';
+    catTotals[c] = (catTotals[c]||0) + b.amount;
+  });
+
+  // Shopping Checklist Items
+  const checklist = S.checklist || [];
+
   let rot='';
   if(S.people.length){
     for(let d=1;d<=last;d+=BLOCK_DAYS){
@@ -483,10 +483,16 @@ function renderBazar(){
       rot+=`<span class="tag">${dd}–${Math.min(dd+BLOCK_DAYS-1,last)} — <b>${esc(bazarPerson(kk)||'—')}</b></span> `;
     }
   }
+
   return `
   <div class="emb card">
-    <b>🛒 বাজার / খরচ</b>
+    <b>🛒 খরচ ও ক্যাটাগরি ম্যানেজার</b>
     ${isMgr()?`<div class="row" style="margin-top:12px">
+      <select id="bzCat">
+        <option value="বাজার খরচ">🛒 বাজার খরচ</option>
+        <option value="ইউটিলিটি বিল">⚡ ইউটিলিটি বিল (কারেন্ট/গ্যাস)</option>
+        <option value="অন্যান্য">🧼 অন্যান্য (সোপ/টিস্যু)</option>
+      </select>
       <select id="bzP">${S.people.map(p=>`<option>${esc(p)}</option>`).join('')}</select>
       <input id="bzD" placeholder="বিবরণ" style="flex:1;min-width:110px">
       <input id="bzA" type="number" placeholder="৳">
@@ -494,27 +500,56 @@ function renderBazar(){
     </div>`:'<div class="hint">ম্যানেজার খরচ যোগ করেন</div>'}
     <div class="row" style="margin-top:12px">
       <input type="month" value="${bazarMonth}" onchange="bazarMonth=this.value;render()">
-      <span style="margin-left:auto">মোট: <b class="b">${money(tot)}</b></span>
+      <span style="margin-left:auto">মোট খরচ: <b class="b">${money(tot)}</b></span>
     </div>
-    ${list.length?`<table class="plain"><tr><th class="l">তারিখ</th><th class="l">কে</th><th class="l">বিবরণ</th><th>৳</th>${isMgr()?'<th></th>':''}</tr>
-    ${list.map(b=>`<tr><td class="l">${b.date.slice(8)}</td><td class="l">${esc(b.name)}</td><td class="l">${esc(b.desc)}</td><td class="b">${money(b.amount)}</td>
+    
+    <!-- Category Summary Cards -->
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      ${Object.keys(catTotals).map(c=>`<div class="tag" style="background:#dbeafe;color:#1d4ed8"><b>${c}:</b> ${money(catTotals[c])}</div>`).join('')}
+    </div>
+
+    ${list.length?`<table class="plain"><tr><th class="l">তারিখ</th><th class="l">ক্যাটাগরি</th><th class="l">কে</th><th class="l">বিবরণ</th><th>৳</th>${isMgr()?'<th></th>':''}</tr>
+    ${list.map(b=>`<tr><td class="l">${b.date.slice(8)}</td><td class="l"><span class="tag">${esc(b.cat||'বাজার খরচ')}</span></td><td class="l">${esc(b.name)}</td><td class="l">${esc(b.desc)}</td><td class="b">${money(b.amount)}</td>
       ${isMgr()?`<td><button class="lbtn small danger" onclick="delBazar(${S.bazars.indexOf(b)})">✕</button></td>`:''}</tr>`).join('')}</table>`:'<div class="hint">এন্ট্রি নেই</div>'}
   </div>
+
+  <!-- Feature 5: Shared Shopping Checklist -->
   <div class="emb card">
-    <b>📅 এই মাসের বাজার রোটেশন (অটো)</b>
-    <div class="row" style="margin-top:10px">${rot}</div>
-    ${isMgr()?`<div class="hint">রোটেশন ক্রম ম্যানেজার ট্যাবে বদলানো যায় · চলমান বাজারি হস্তান্তর করতে ড্যাশবোর্ডে 🔄 বাটন</div>`:''}
+    <b>🛍️ মেসের শপিং চেকলিস্ট (বাজার লিস্ট)</b>
+    <div class="row" style="margin-top:10px">
+      <input id="chkItem" placeholder="নতুন আইটেম (যেমন: তেল, ডাল)" style="flex:1">
+      <button class="lbtn primary small" onclick="addChecklist()">+ যোগ করুন</button>
+    </div>
+    <div style="margin-top:10px">
+      ${checklist.length?checklist.map((item,i)=>`
+        <div class="row" style="padding:6px 0;border-bottom:1px solid #d5dbe7">
+          <input type="checkbox" ${item.done?'checked':''} onchange="toggleChecklist(${i})" style="width:20px;height:20px;cursor:pointer">
+          <span style="${item.done?'text-decoration:line-through;color:var(--dim);':''}">${esc(item.text)}</span>
+          <span class="small" style="margin-left:auto">লিখেছেন: ${esc(item.by)}</span>
+          <button class="lbtn small danger" onclick="delChecklist(${i})" style="padding:2px 6px">✕</button>
+        </div>
+      `).join(''):'<div class="hint">লিস্ট খালি আছে</div>'}
+    </div>
   </div>
-  <div class="emb card"><b>👤 কে কত বাজার করেছে</b>
-    <table class="plain"><tr><th class="l">নাম</th><th>খরচ</th></tr>
-    ${S.people.map(p=>`<tr><td class="l">${esc(p)}</td><td class="g">${money(byPm(list,p))}</td></tr>`).join('')}</table>
+
+  <div class="emb card">
+    <b>📅 এই মাসের বাজার রোটেশন</b>
+    <div class="row" style="margin-top:10px">${rot}</div>
   </div>`;
 }
 function addBazar(){
   const a=parseFloat($('bzA').value); if(!a||a<=0)return toast('টাকা দিন');
-  S.bazars.push({date:dkey(curDate),name:$('bzP').value,desc:$('bzD').value.trim()||'বাজার',amount:a}); save(); render();
+  S.bazars.push({date:dkey(curDate),cat:$('bzCat').value,name:$('bzP').value,desc:$('bzD').value.trim()||'খরচ',amount:a}); save(); render();
 }
 function delBazar(i){ S.bazars.splice(i,1); save(); render(); }
+
+function addChecklist(){
+  const t=$('chkItem').value.trim(); if(!t)return;
+  S.checklist=S.checklist||[];
+  S.checklist.push({text:t,done:false,by:me.name}); save(); $('chkItem').value=''; render();
+}
+function toggleChecklist(i){ S.checklist[i].done=!S.checklist[i].done; save(); render(); }
+function delChecklist(i){ S.checklist.splice(i,1); save(); render(); }
 
 /* ═══ টাকা ═══ */
 function renderMoney(){
@@ -604,7 +639,61 @@ function exportJSON(){ const a=document.createElement('a'); a.href=URL.createObj
 function doImport(inp){ const f=inp.files[0]; if(!f)return; const r=new FileReader();
   r.onload=()=>{ try{ S=JSON.parse(r.result); save(); toast('রিস্টোর হয়েছে'); render(); }catch(e){ toast('ভুল ফাইল'); } }; r.readAsText(f); }
 
-/* ═══ রিপোর্ট ═══ */
+/* ═══ নোটিশ বোর্ড ও ডিরেক্টরি (Feature 2 & Feature 6) ═══ */
+function renderNotice(){
+  const notices=S.notices||[];
+  const profiles=S.profiles||{};
+  return `
+  <!-- Feature 2: Notice Board -->
+  <div class="emb card">
+    <b>📌 মেসের ডিজিটাল নোটিশ বোর্ড</b>
+    <div style="margin-top:10px">
+      <textarea id="noticeText" placeholder="জরুরি ঘোষণা লিখুন (যেমন: আজ রাতে বাজার ভালো করে করবে...)" style="width:100%;height:70px;padding:10px;resize:none"></textarea>
+      <button class="lbtn primary small" style="margin-top:6px" onclick="addNotice()">নোটিশ পোস্ট করুন</button>
+    </div>
+    <div style="margin-top:14px">
+      ${notices.length?notices.slice().reverse().map((n,i)=>`
+        <div class="emb card" style="margin-bottom:10px;padding:12px;background:#f8fafc">
+          <div class="row"><b>${esc(n.author)}</b><span class="small" style="margin-left:auto">${n.date}</span></div>
+          <div style="margin-top:6px;font-size:14px;white-space:pre-wrap">${esc(n.text)}</div>
+          ${(isMgr()||n.author===me.name)?`<button class="lbtn small danger" style="margin-top:8px" onclick="delNotice(${notices.length-1-i})">ডিলেট</button>`:''}
+        </div>
+      `).join(''):'<div class="hint">কোনো নোটিশ নেই</div>'}
+    </div>
+  </div>
+
+  <!-- Feature 6: Member Directory -->
+  <div class="emb card">
+    <b>📞 সদস্য প্রোফাইল ও ফোন ডিরেক্টরি</b>
+    <div class="hint" style="margin-bottom:10px">আপনার ফোন নম্বর ও রুম নম্বর আপডেট করুন যাতে সবাই যোগাযোগ করতে পারে।</div>
+    <table class="plain"><tr><th class="l">নাম</th><th class="l">ফোন নম্বর</th><th class="l">রুম</th><th></th></tr>
+    ${S.people.map(p=>{
+      const prof=profiles[p]||{phone:'',room:''};
+      const isMe=(p===me.name);
+      return `<tr>
+        <td class="l"><b>${esc(p)}</b></td>
+        <td class="l">${isMe?`<input id="myPhone" value="${esc(prof.phone)}" placeholder="017xxxxxxxx" style="width:130px;padding:6px">`:(esc(prof.phone)||'–')}</td>
+        <td class="l">${isMe?`<input id="myRoom" value="${esc(prof.room)}" placeholder="রুম নং" style="width:70px;padding:6px">`:(esc(prof.room)||'–')}</td>
+        <td>${isMe?`<button class="lbtn primary small" onclick="saveProfile()">সেভ</button>`:(prof.phone?`<a href="tel:${prof.phone}" class="lbtn small primary" style="text-decoration:none">কল</a>`:``)}</td>
+      </tr>`;
+    }).join('')}</table>
+  </div>`;
+}
+function addNotice(){
+  const t=$('noticeText').value.trim(); if(!t)return;
+  S.notices=S.notices||[];
+  S.notices.push({text:t,author:me.name,date:new Date().toLocaleDateString('bn-BD')});
+  save(); $('noticeText').value=''; render(); toast('নোটিশ পোস্ট হয়েছে');
+}
+function delNotice(i){ S.notices.splice(i,1); save(); render(); toast('ডিলিট হয়েছে'); }
+function saveProfile(){
+  const p=$('myPhone').value.trim(), r=$('myRoom').value.trim();
+  S.profiles=S.profiles||{};
+  S.profiles[me.name]={phone:p,room:r};
+  save(); render(); toast('প্রোফাইল আপডেট হয়েছে');
+}
+
+/* ═══ রিপোর্ট ও প্রিন্ট (Feature 3) ═══ */
 function renderReport(){
   const m=dkey(curDate).slice(0,7);
   const meals=monthMeals(m);
@@ -615,11 +704,14 @@ function renderReport(){
   const rate=tm>0?total/tm:0;
   return `
   <div class="emb card">
-    <b>📅 মাসিক রিপোর্ট — ${new Date(m+'-01').toLocaleDateString('bn-BD',{month:'long',year:'numeric'})}</b>
+    <div class="row">
+      <b>📅 মাসিক রিপোর্ট — ${new Date(m+'-01').toLocaleDateString('bn-BD',{month:'long',year:'numeric'})}</b>
+      <button class="lbtn primary small no-print" style="margin-left:auto" onclick="window.print()">🖨️ প্রিন্ট / PDF সেভ</button>
+    </div>
     <table class="plain" style="margin-top:10px"><tr><th class="l">নাম</th><th>মোট মিল</th><th>দিতে হবে</th></tr>
     ${S.people.map(p=>`<tr><td class="l">${esc(p)}</td><td><b>${meals[p]}</b></td><td class="b">${money(meals[p]*rate)}</td></tr>`).join('')}
     <tr><th class="l">মোট</th><th>${tm}</th><th>${money(total)}</th></tr></table>
-    <div class="hint">প্রতি মিল রেট: ${money(rate)} · মেহমান ১ এন্ট্রি = ২ মিল (রাত + পরের সকাল)</div>
+    <div class="hint">প্রতি মিল রেট: ${money(rate)} · মেহমান ১ এন্ট্রি = ২ মিল</div>
   </div>`;
 }
 
@@ -647,26 +739,15 @@ function renderAdmin(){
   </div>
   <div class="emb card">
     <b>🔄 বাজার রোটেশন ক্রম</b>
-    <div class="hint">মাসের ১ তারিখ থেকে এই ক্রমে প্রত্যেকে ${BLOCK_DAYS} দিন করে বাজার করবে। ক্রম বদলাতে তালিকা থেকে কেউ সরান/যোগ করুন — ক্রম = নিচের তালিকা।</div>
+    <div class="hint">মাসের ১ তারিখ থেকে এই ক্রমে প্রত্যেকে ${BLOCK_DAYS} দিন করে বাজার করবে।</div>
     <div class="row" style="margin-top:8px">
       ${order.map((p,i)=>`<span class="tag">${i+1}. ${esc(p)} (${i*BLOCK_DAYS+1}–${(i+1)*BLOCK_DAYS})</span>`).join(' → ')}
     </div>
   </div>
   <div class="emb card">
-    <b>ℹ️ নিয়মাবলী</b>
-    <div class="hint">
-      • শিফট: <b>${SHIFTS.join(' + ')}</b> — ফিক্সড<br>
-      • এন্ট্রি ডেডলাইন: <b>বিকাল ${DEADLINE_HOUR}:00</b> — এর পরে আজকের মিল/মেহমান কেউ অ্যাড করতে পারবে না (ম্যানেজারসহ)<br>
-      • মেহমান এন্ট্রি: আজ <b>রাত</b> + আগামীকাল <b>সকাল</b> = ২ মিল<br>
-      • বাজার: মাসের ১ তারিখে অটো রোটেশন শুরু, ${BLOCK_DAYS} দিন করে · ড্যাশবোর্ড থেকে হস্তান্তর<br>
-      • ডেটা এই ডিভাইসে সেভ হয় — মাস শেষে ব্যাকআপ নিন
-    </div>
-  </div>
-  <div class="emb card">
-    <b>🗑️ ডেটা</b>
+    <b>🗑️ ডেটা রিসেট</b>
     <div class="row" style="margin-top:8px">
-      <button class="lbtn danger small" onclick="exportJSON()">💾 ব্যাকআপ</button>
-      <button class="lbtn danger small" onclick="if(confirm('সব ডেটা মুছে নতুন শুরু?')){localStorage.removeItem('milApp4');localStorage.removeItem('milMe4');location.reload()}">সব রিসেট</button>
+      <button class="lbtn danger small" onclick="if(confirm('সব ডেটা মুছে নতুন শুরু?')){localStorage.removeItem('milApp5');localStorage.removeItem('milMe5');location.reload()}">সব রিসেট</button>
     </div>
   </div>`;
 }
@@ -675,8 +756,8 @@ function addUser(){
   if(!n)return toast('নাম দিন');
   if(S.people.includes(n)||(S.manager&&n===S.manager.name))return toast('আছে আগেই');
   if(p&&p.length<4)return toast('পাসওয়ার্ড ৪+ অক্ষর');
-  S.people.push(n); if(p)S.users[n]={pass:p};
-  save(); render(); toast(n+' যোগ হয়েছে — রোটেশনে যুক্ত হলো');
+  S.people.push(n); if(p)S.users[n]={pass:p}; S.profiles[n]={phone:'',room:''};
+  save(); render(); toast(n+' যোগ হয়েছে');
 }
 function resetPass(p){
   const np=prompt('"'+p+'" এর নতুন পাসওয়ার্ড (৪+ অক্ষর):', S.users[p]?S.users[p].pass:'');
@@ -685,13 +766,9 @@ function resetPass(p){
   S.users[p]={pass:np}; save(); render(); toast('সেট হয়েছে');
 }
 
-/* ═══ MODAL & RENDER ═══ */
-function modal(h){ $('modalRoot').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="emb modal">${h}</div></div>`; }
-function closeModal(){ $('modalRoot').innerHTML=''; }
 function render(){
-  $('mainArea').innerHTML = tab==='d'?renderDash() : tab==='m'?renderMeal() : tab==='c'?renderChart() : tab==='b'?renderBazar() : tab==='r'?renderMoney() : tab==='p'?renderReport() : renderAdmin();
+  $('mainArea').innerHTML = tab==='d'?renderDash() : tab==='m'?renderMeal() : tab==='c'?renderChart() : tab==='b'?renderBazar() : tab==='r'?renderMoney() : tab==='n'?renderNotice() : tab==='p'?renderReport() : renderAdmin();
 }
-/* সময় পার হলে অটো রিফ্রেশ (লক কার্যকর হওয়ার জন্য) */
 setInterval(()=>{ if(me&&tab==='d'&&isToday(dkey(curDate))) render(); }, 60000);
 </script>
 </body>
